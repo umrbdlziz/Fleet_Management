@@ -33,9 +33,11 @@ const LiveMap = () => {
 
   useEffect(() => {
     const socket = io(SERVER_URL);
-    socket.on("connect", () => {
-      console.log(`Connected to server with id ${socket.id}`);
-    });
+
+    // use for troubleshooting connection
+    // socket.on("connect", () => {
+    //   console.log(`Connected to server with id ${socket.id}`);
+    // });
 
     socket.on("tinyRobot_state", (data) => {
       setRobotState(data.robots);
@@ -84,7 +86,7 @@ const LiveMap = () => {
         key={`${name}-${yaw}`}
         position={[scaledY, scaledX]}
         icon={myIcon}
-        rotationAngle={yaw * (180 / Math.PI) + 90} // rotate the marker
+        rotationAngle={yaw * (180 / Math.PI) + 180} // rotate the marker
         rotationOrigin={"center center"} // rotate around the center
       >
         <Popup>
@@ -161,7 +163,7 @@ const LiveMap = () => {
         </Paper>
       </Grid>
       <Grid item xs={12} md={3}>
-        <TaskBar />
+        <TaskBar waypoints={waypoints} />
       </Grid>
     </Grid>
   );

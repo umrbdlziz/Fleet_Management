@@ -9,7 +9,6 @@ import {
   DialogContent,
   DialogTitle,
   TextField,
-  Select,
   MenuItem,
 } from "@mui/material";
 import LoadingButton from "@mui/lab/LoadingButton";
@@ -17,11 +16,12 @@ import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
 import CircularProgress from "@mui/material/CircularProgress";
 import io from "socket.io-client";
 import axios from "axios";
+import PropTypes from "prop-types";
 
 import { ServerContext } from "../context";
 import { CustomSnackbar } from "../utils";
 
-const TaskBar = () => {
+const TaskBar = ({ waypoints }) => {
   const { SERVER_URL } = useContext(ServerContext);
   const [tasks, setTasks] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
@@ -32,12 +32,22 @@ const TaskBar = () => {
 
   // state for snackbar
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [filteredWaypoints, setFilteredWaypoints] = useState([]);
+
+  useEffect(() => {
+    const waypointsWithName = waypoints.filter(
+      (waypoint) => waypoint.name !== ""
+    );
+    setFilteredWaypoints(waypointsWithName);
+  }, [waypoints]);
 
   useEffect(() => {
     const socket = io(SERVER_URL);
-    socket.on("connect", () => {
-      console.log(`Connected to server with id ${socket.id}`);
-    });
+
+    // use for troubleshooting connection
+    // socket.on("connect", () => {
+    //   console.log(`Connected to server with id ${socket.id}`);
+    // });
 
     tasks.forEach((task) => {
       socket.on(`${task.booking.id}_state`, (data) => {
@@ -80,6 +90,8 @@ const TaskBar = () => {
           setOpenDialog(false);
           fetchTasks();
           setIsLoading(false);
+          setTaskType("");
+          setDestination("");
         }, 5000);
       })
       .catch((err) => console.error(err));
@@ -116,7 +128,7 @@ const TaskBar = () => {
         <Button
           variant="contained"
           startIcon={<PlaylistAddIcon />}
-          color="secondary"
+          color="info"
           onClick={() => setOpenDialog(true)}
         >
           Add Task
@@ -153,16 +165,24 @@ const TaskBar = () => {
               </Box>
             ))
           ) : (
-            <Typography variant="body1">No tasks available</Typography>
+            <Box
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+              height="50vh"
+            >
+              <Typography variant="body1">No tasks available</Typography>
+            </Box>
           )}
         </Box>
       </Paper>
 
       {/**Dialog to add new tasks */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-        <DialogTitle>Create Task</DialogTitle>
+        <DialogTitle sx={{ width: "500px" }}>Create Task</DialogTitle>
         <DialogContent>
-          <Select
+          <TextField
+            select
             autoFocus
             margin="dense"
             id="name"
@@ -171,9 +191,12 @@ const TaskBar = () => {
             onChange={(e) => setTaskType(e.target.value)}
             value={taskType}
           >
-            <MenuItem value={"patrol"}>Patrol</MenuItem>
-          </Select>
+            <MenuItem value="patrol" key="patrol">
+              Patrol
+            </MenuItem>
+          </TextField>
           <TextField
+            select
             autoFocus
             margin="dense"
             id="name"
@@ -181,13 +204,28 @@ const TaskBar = () => {
             type="text"
             fullWidth
             onChange={(e) => setDestination(e.target.value)}
-          />
+            value={destination}
+          >
+            {filteredWaypoints.map((filteredWaypoint) => (
+              <MenuItem
+                key={filteredWaypoint.name}
+                value={filteredWaypoint.name}
+              >
+                {filteredWaypoint.name}
+              </MenuItem>
+            ))}
+          </TextField>
         </DialogContent>
         <DialogActions>
-          <Button color="secondary" onClick={() => setOpenDialog(false)}>
+          <Button
+            variant="outlined"
+            color="secondary"
+            onClick={() => setOpenDialog(false)}
+          >
             Close
           </Button>
           <LoadingButton
+            variant="contained"
             loading={isLoading}
             onClick={dispatchTask}
             color="secondary"
@@ -206,6 +244,10 @@ const TaskBar = () => {
       />
     </>
   );
+};
+
+TaskBar.propTypes = {
+  waypoints: PropTypes.array.isRequired,
 };
 
 export default TaskBar;
