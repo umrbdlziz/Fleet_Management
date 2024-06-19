@@ -154,7 +154,10 @@ const TaskBar = ({ waypoints }) => {
                 </Box>
                 <Box>
                   <Typography color="textSecondary" variant="caption">
-                    Robot Name: {task.assigned_to.name}
+                    Robot Name:{" "}
+                    {task.assigned_to !== "undefined"
+                      ? task.assigned_to.name
+                      : "Not Assigned"}
                   </Typography>
                 </Box>
                 <Box>

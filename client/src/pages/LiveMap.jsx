@@ -16,7 +16,7 @@ import "leaflet-rotatedmarker";
 
 import { ServerContext } from "../context";
 import TaskBar from "../components/TaskBar";
-import arrowIcon from "../assets/arrow.png";
+import fleetIcon from "../assets/image.svg";
 
 const LiveMap = () => {
   const { SERVER_URL } = useContext(ServerContext);
@@ -67,7 +67,7 @@ const LiveMap = () => {
   }, [mapUrl]);
 
   const myIcon = L.icon({
-    iconUrl: arrowIcon,
+    iconUrl: fleetIcon,
     iconSize: [30, 30],
   });
 

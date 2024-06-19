@@ -1,74 +1,29 @@
-import { useEffect } from "react";
-import axios from "axios";
+import { Grid, Box } from "@mui/material";
+
+import RobotInfo from "../components/RobotInfo";
+import RobotRuntime from "../components/RobotRuntime";
+import TaskInfo from "../components/TasksInfo";
+import RobotPerformance from "../components/RobotPerformance";
 
 const Dashboard = () => {
-  useEffect(() => {
-    axios
-      .post("http://192.168.1.48:9090/api/Light/PostInfo/", {
-        Details: [
-          // {
-          //   LocationId: "L3A1001",
-          //   LightColor: 64,
-          //   Twinkle: 0,
-          //   IsLocked: 0,
-          //   IsMustCollect: 0,
-          //   Quantity: 100,
-          //   SubText: "11",
-          //   BatchCode: "BatchCode",
-          //   Name: "Name",
-          //   R1: "First Line",
-          //   R2: "Second Line",
-          //   R3: "Third Line",
-          //   SubTitle: "Subtitle",
-          //   Title: "Main Title",
-          //   Unit: "Unit",
-          //   RelateToTower: true,
-          // },
-          {
-            LocationId: "L2A1001",
-            LightColor: 64,
-            Twinkle: 0,
-            IsLocked: 0,
-            IsMustCollect: 1,
-            Quantity: 100,
-            SubText: "11",
-            BatchCode: "BatchCode",
-            Name: "Name",
-            R1: "No. One Line",
-            R2: "Second Line",
-            R3: "Third Line",
-            SubTitle: "SubTitle",
-            Title: "Main Title",
-            Unit: "Unit",
-            RelateToTower: false,
-          },
-          // {
-          //   LocationId: "L1A1001",
-          //   LightColor: 64,
-          //   Twinkle: 0,
-          //   IsLocked: 0,
-          //   IsMustCollect: 0,
-          //   Quantity: 100,
-          //   SubText: "11",
-          //   BatchCode: "BatchCode",
-          //   Name: "Name",
-          //   R1: "No. One Line",
-          //   R2: "Second Line",
-          //   R3: "Third Line",
-          //   SubTitle: "SubTitle",
-          //   Title: "Main Title",
-          //   Unit: "Unit",
-          //   RelateToTower: false,
-          // },
-        ],
-      })
-      .then((res) => {
-        console.log(res.data);
-      })
-      .catch((err) => console.log(err));
-  }, []);
-
-  return <div>Dashboard</div>;
+  return (
+    <Box m={2}>
+      <Grid container spacing={2}>
+        <Grid item sm={12} md={6}>
+          <RobotInfo />
+        </Grid>
+        <Grid item sm={12} md={6}>
+          <RobotRuntime />
+        </Grid>
+        <Grid item sm={12} md={6}>
+          <TaskInfo />
+        </Grid>
+        <Grid item sm={12} md={6}>
+          <RobotPerformance />
+        </Grid>
+      </Grid>
+    </Box>
+  );
 };
 
 export default Dashboard;

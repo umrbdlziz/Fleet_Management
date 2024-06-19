@@ -100,7 +100,7 @@ const startRos = () => {
     ]);
 
     rosProcess.stdout.on("data", (data) => {
-      //console.log(`stdout: ${data}`);
+      console.log(`stdout: ${data}`);
     });
 
     rosProcess.stderr.on("data", (data) => {
@@ -149,6 +149,34 @@ const restartRos = () => {
 
 app.get("/", (req, res) => {
   res.send("Hello, welcome to my server!");
+});
+
+app.get("/get_fleets", async (req, res) => {
+  let data = {};
+
+  try {
+    const fleetResponse = await fetch(`${process.env.RMF_URL}/fleets`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!fleetResponse.ok) {
+      throw new Error("Network response was not ok");
+    }
+
+    const fleetData = await fleetResponse.json();
+
+    data = {
+      fleets: fleetData,
+    };
+
+    res.send(data);
+  } catch (error) {
+    console.error("Error getting fleet:", error.message);
+    return;
+  }
 });
 
 app.get("/get_tasks", async (req, res) => {
