@@ -1,6 +1,7 @@
 import { useEffect, useContext, useState } from "react";
-import { Grid, Paper, Typography } from "@mui/material";
+import { Box, Button, Grid, Paper, Typography } from "@mui/material";
 import io from "socket.io-client";
+import axios from "axios";
 
 import {
   MapContainer,
@@ -30,23 +31,30 @@ const LiveMap = () => {
   ]);
   const [waypoints, setWaypoints] = useState([]);
   const [edges, setEdges] = useState([]);
+  const [scale, setScale] = useState([]);
 
   useEffect(() => {
     const socket = io(SERVER_URL);
 
-    // use for troubleshooting connection
-    // socket.on("connect", () => {
-    //   console.log(`Connected to server with id ${socket.id}`);
-    // });
-
-    socket.on("tinyRobot_state", (data) => {
-      setRobotState(data.robots);
-    });
+    // Fetch fleet names from the /fleet endpoint
+    axios
+      .get(`${SERVER_URL}/get_fleets`)
+      .then((response) => {
+        const fleetNames = response.data.fleets; // assuming the response data is an array of fleet names
+        // Subscribe to each fleet's state
+        fleetNames.forEach((fleetName) => {
+          socket.on(`${fleetName.name}_state`, (data) => {
+            setRobotState(data.robots);
+          });
+        });
+      })
+      .catch((err) => console.log(err));
 
     socket.on("building_map", (data) => {
       setMapUrl(data.levels[0].images[0].data);
       setWaypoints(data.levels[0].nav_graphs[0].vertices);
       setEdges(data.levels[0].nav_graphs[0].edges);
+      setScale(data.levels[0].images[0].scale);
     });
 
     return () => {
@@ -71,7 +79,13 @@ const LiveMap = () => {
     iconSize: [30, 30],
   });
 
-  const scale = 0.008465494960546494; // Scale factor to adjust coordinates
+  const handleLaunchRos = async () => {
+    axios.post(`${SERVER_URL}/launch_ros`).catch((err) => console.log(err));
+  };
+
+  const handleShutdonwRos = async () => {
+    axios.post(`${SERVER_URL}/shutdown_ros`).catch((err) => console.log(err));
+  };
 
   const robotMarkers = Object.values(robotState).map((robot) => {
     if (!robot.location) return null;
@@ -108,7 +122,7 @@ const LiveMap = () => {
       <Circle
         key={index}
         center={[scaledY, scaledX]}
-        radius={40}
+        radius={500 * scale}
         fillColor="blue"
         fillOpacity={0.5}
         stroke={false}
@@ -142,30 +156,40 @@ const LiveMap = () => {
   });
 
   return (
-    <Grid container spacing={3} p={2}>
-      <Grid item xs={12} md={9}>
-        <Paper sx={{ padding: "10px" }}>
-          <Typography variant="h4">Live Map</Typography>
-          {robotState && (
-            <MapContainer
-              center={{ lat: 1000, lng: 1500 }}
-              zoom={-2}
-              minZoom={-5}
-              style={{ height: "80vh", width: "100%" }}
-              crs={L.CRS.Simple}
-            >
-              <ImageOverlay url={mapUrl} bounds={bounds} />
-              {robotMarkers}
-              {waypointMarkers}
-              {edgeLines}
-            </MapContainer>
-          )}
-        </Paper>
+    <Box m={2}>
+      <Box paddingY={2} display="flex" gap={2}>
+        <Button variant="contained" color="info" onClick={handleLaunchRos}>
+          Launch Ros
+        </Button>
+        <Button variant="contained" color="error" onClick={handleShutdonwRos}>
+          Shutdown Ros
+        </Button>
+      </Box>
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={9}>
+          <Paper sx={{ padding: "10px" }}>
+            <Typography variant="h4">Live Map</Typography>
+            {robotState && (
+              <MapContainer
+                center={{ lat: 1000, lng: 1500 }}
+                zoom={-2}
+                minZoom={-5}
+                style={{ height: "75vh", width: "100%" }}
+                crs={L.CRS.Simple}
+              >
+                <ImageOverlay url={mapUrl} bounds={bounds} />
+                {robotMarkers}
+                {waypointMarkers}
+                {edgeLines}
+              </MapContainer>
+            )}
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={3}>
+          <TaskBar waypoints={waypoints} />
+        </Grid>
       </Grid>
-      <Grid item xs={12} md={3}>
-        <TaskBar waypoints={waypoints} />
-      </Grid>
-    </Grid>
+    </Box>
   );
 };
 

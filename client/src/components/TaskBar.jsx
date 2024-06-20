@@ -117,7 +117,7 @@ const TaskBar = ({ waypoints }) => {
       <Paper
         sx={{
           padding: "15px",
-          height: "85vh",
+          height: "80vh",
           display: "flex",
           flexDirection: "column",
           gap: "10px",

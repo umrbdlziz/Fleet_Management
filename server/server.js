@@ -1,6 +1,7 @@
 const express = require("express");
 const { spawn, exec } = require("child_process");
 const cors = require("cors");
+const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const yaml = require("yaml");
@@ -50,7 +51,7 @@ io.on("connection", (socket) => {
           });
         });
       })
-      .catch((err) => console.log(err));
+      .catch((err) => console.log(err.message));
 
     // Fetch tasks id from the /tasks endpoint
     axios
@@ -66,12 +67,12 @@ io.on("connection", (socket) => {
           });
         });
       })
-      .catch((err) => console.log(err));
+      .catch((err) => console.log(err.message));
 
     subscribeToRoom("/building_map");
     socket.on("/building_map", handleMapData);
   } catch (err) {
-    console.log(err);
+    console.log(err.message);
   }
 
   socket.on("disconnect", () => {
@@ -88,23 +89,39 @@ app.use(
   })
 );
 
-let rosProcess = null;
+// Ensure the target directory exists, create if not
+const targetDir = process.env.IMG_DIR;
+// fs.existsSync(targetDir) || fs.mkdirSync(targetDir, { recursive: true });
+
+// Configure multer for file storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, targetDir);
+  },
+  filename: (req, file, cb) => {
+    // Use the original file name, or you can rename the file here
+    cb(null, file.originalname);
+  },
+});
+
+const upload = multer({ storage: storage });
 
 // Function to start ROS launch
+let rosProcess = null;
+let rosProcess2 = null;
+let dockerComposeProcess = null;
+
 const startRos = () => {
   if (!rosProcess) {
-    rosProcess = spawn("bash", [
-      "-c",
-      "source /home/msf1/rmf_ws/install/setup.bash && ros2 launch rmf_demos_gz_classic office.launch.xml",
-      { shell: true },
-    ]);
+    const command = `source ${process.env.SOURCE_DIR} && ros2 launch ${process.env.ROS_COMMAD}`;
+    rosProcess = spawn("bash", ["-c", command]);
 
     rosProcess.stdout.on("data", (data) => {
-      console.log(`stdout: ${data}`);
+      // console.log(`ROS stdout: ${data}`);
     });
 
     rosProcess.stderr.on("data", (data) => {
-      console.error(`stderr: ${data}`);
+      console.error(`ROS stderr: ${data}`);
     });
 
     rosProcess.on("close", (code) => {
@@ -112,40 +129,118 @@ const startRos = () => {
       rosProcess = null;
     });
 
-    console.log("ROS launch started");
+    console.log("ROS started");
   } else {
-    console.log("ROS is already running");
+    console.log("ROS process is already running");
+  }
+};
+
+const startRos2 = () => {
+  if (!rosProcess2) {
+    const command = `source ${process.env.SOURCE_DIR} && ros2 launch ${process.env.ROS_COMMAD2}`;
+    rosProcess2 = spawn("bash", ["-c", command]);
+
+    rosProcess2.stdout.on("data", (data) => {
+      // console.log(`Another Package stdout: ${data}`);
+    });
+
+    rosProcess2.stderr.on("data", (data) => {
+      console.error(`Another Package stderr: ${data}`);
+    });
+
+    rosProcess2.on("close", (code) => {
+      console.log(`Another Package process exited with code ${code}`);
+      rosProcess2 = null;
+    });
+
+    console.log("Another ROS package launched");
+  } else {
+    console.log("Another ROS package process is already running");
+  }
+};
+
+const shutdownProcesses = () => {
+  if (rosProcess) {
+    rosProcess.kill("SIGINT"); // Send SIGINT to gracefully shut down the process
+    console.log("Shutting down ROS process...");
+    rosProcess = null; // Reset the variable to indicate the process is no longer running
+  } else {
+    console.log("ROS process is not running.");
+  }
+
+  if (anotherPackageProcess) {
+    anotherPackageProcess.kill("SIGINT"); // Send SIGINT to gracefully shut down the process
+    console.log("Shutting down Another ROS package process...");
+    anotherPackageProcess = null; // Reset the variable to indicate the process is no longer running
+  } else {
+    console.log("Another ROS package process is not running.");
+  }
+};
+
+const startDockerCompose = () => {
+  if (!dockerComposeProcess) {
+    const command = `docker compose -f mission_dispatch_services.yaml up`;
+    dockerComposeProcess = spawn("bash", ["-c", command], {
+      cwd: "/home/nanofleet/isaac_mission_dispatch/docker_compose",
+    });
+
+    dockerComposeProcess.stdout.on("data", (data) => {
+      console.log(`Docker Compose stdout: ${data}`);
+    });
+
+    dockerComposeProcess.stderr.on("data", (data) => {
+      console.error(`Docker Compose stderr: ${data}`);
+    });
+
+    dockerComposeProcess.on("close", (code) => {
+      console.log(`Docker Compose process exited with code ${code}`);
+      dockerComposeProcess = null;
+    });
+
+    console.log("Docker Compose started");
+  } else {
+    console.log("Docker Compose process is already running");
+  }
+};
+
+const shutdownDockerCompose = () => {
+  if (dockerComposeProcess) {
+    console.log("Shutting down Docker Compose...");
+    const downCommand = `docker compose -f mission_dispatch_services.yaml down`;
+    spawn("bash", ["-c", downCommand], {
+      cwd: "/home/nanofleet/isaac_mission_dispatch/docker_compose",
+    });
   }
 };
 
 // Function to stop ROS launch and rebuild
-const restartRos = () => {
-  if (rosProcess) {
-    rosProcess.kill();
-    rosProcess = null;
+// const restartRos = () => {
+//   if (rosProcess) {
+//     rosProcess.kill();
+//     rosProcess = null;
 
-    const colconBuild = spawn("colcon", ["build"], {
-      cwd: "/home/msf1/rmf_ws",
-    });
+//     const colconBuild = spawn("colcon", ["build"], {
+//       cwd: "/home/msf1/rmf_ws",
+//     });
 
-    colconBuild.stdout.on("data", (data) => {
-      console.log(`stdout: ${data}`);
-    });
+//     colconBuild.stdout.on("data", (data) => {
+//       console.log(`stdout: ${data}`);
+//     });
 
-    colconBuild.stderr.on("data", (data) => {
-      console.error(`stderr: ${data}`);
-    });
+//     colconBuild.stderr.on("data", (data) => {
+//       console.error(`stderr: ${data}`);
+//     });
 
-    colconBuild.on("close", (code) => {
-      console.log(`Colcon build exited with code ${code}`);
+//     colconBuild.on("close", (code) => {
+//       console.log(`Colcon build exited with code ${code}`);
 
-      io.emit("colconBuildComplete", { code }); // Emit an event to the client side indicating that the colcon build has completed
-      startRos();
-    });
-  } else {
-    console.log("No ROS process running");
-  }
-};
+//       io.emit("colconBuildComplete", { code }); // Emit an event to the client side indicating that the colcon build has completed
+//       startRos();
+//     });
+//   } else {
+//     console.log("No ROS process running");
+//   }
+// };
 
 app.get("/", (req, res) => {
   res.send("Hello, welcome to my server!");
@@ -285,6 +380,17 @@ app.post("/update_config", (req, res) => {
   }
 });
 
+app.post("/upload_map", upload.single("file"), (req, res) => {
+  if (req.file) {
+    res.send({
+      message: "File uploaded successfully",
+      filePath: req.file.path,
+    });
+  } else {
+    res.status(400).send({ message: "Error uploading file" });
+  }
+});
+
 app.post("/run-traffic-editor", (req, res) => {
   exec("traffic-editor", (error, stdout, stderr) => {
     if (error) {
@@ -299,23 +405,60 @@ app.post("/run-traffic-editor", (req, res) => {
   });
 });
 
-app.post("/restart_ros", async (req, res) => {
+// app.post("/restart_ros", async (req, res) => {
+//   try {
+//     restartRos();
+//     res.send("Building started");
+//   } catch (error) {
+//     console.log(error);
+//   }
+// });
+
+// endpoint to colcon build specific packages
+app.post("/colcon_build", async (req, res) => {
+  const params = req.body.params;
+
   try {
-    restartRos();
-    res.send("Building started");
+    const colconBuild = spawn(
+      "colcon",
+      ["build", "--packages-select", params],
+      {
+        cwd: process.env.CWD,
+      }
+    );
+
+    colconBuild.stdout.on("data", (data) => {
+      console.log(`stdout: ${data}`);
+    });
+
+    colconBuild.stderr.on("data", (data) => {
+      console.error(`stderr: ${data}`);
+    });
+
+    colconBuild.on("close", (code) => {
+      console.log(`Colcon build exited with code ${code}`);
+
+      io.emit("colconBuildComplete", { code }); // Emit an event to the client side indicating that the colcon build has completed
+    });
   } catch (error) {
-    console.log(error);
+    console.log("Error building packages: ", error);
   }
 });
 
-app.post("/light", async (req, res) => {
-  // const data = req.body;
-  console.log("Light command received:", req.body);
-
+app.post("/launch_ros", async (req, res) => {
   try {
-    res.send({ Result: 1, Message: "Command received successfully!" });
+    startRos();
+    startRos2();
   } catch (error) {
-    console.log("Error changing light:", error.message);
+    console.log("Error launch Ros: ", error);
+  }
+});
+
+app.post("/shutdown_ros", async (req, res) => {
+  try {
+    shutdownProcesses();
+  } catch (error) {
+    console.log("Error shutdown Ros: ", error);
   }
 });
 
@@ -330,7 +473,10 @@ app.use(function (req, res) {
   res.sendStatus(404);
 });
 
+// Listen for shutdown signals
+// process.on("SIGINT", shutdownDockerCompose);
+// process.on("SIGTERM", shutdownDockerCompose);
+
 server.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
-  startRos();
 });
