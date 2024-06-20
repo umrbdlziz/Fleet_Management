@@ -342,42 +342,76 @@ app.post("/dispatch_task", async (req, res) => {
   }
 });
 
+app.get("/get_yaml_map", async (req, res) => {
+  const yamlFilePath = path.join(
+    process.env.BUILDING_DIR,
+    process.env.BUILDING_FILENAME
+  );
+
+  try {
+    const file = fs.readFileSync(yamlFilePath, "utf8");
+
+    if (!file) {
+      console.error("Error: The building YAML file is empty.");
+      return "Error: The building YAML file is empty";
+    }
+
+    const data = yaml.parse(file);
+    res.send(data);
+  } catch (error) {
+    console.error(`Error reading building YAML file: ${error}`);
+    return null;
+  }
+});
+
 app.get("/config", (req, res) => {
-  // Path to the YAML file
-  const yamlFilePath =
-    "/home/msf1/rmf_ws/src/rmf_demos/rmf_demos/config/office/tinyRobot_config.yaml";
+  const filename = req.query.filename;
+  const yamlFilePath = path.join(process.env.CONFIG_DIR, filename);
 
   // Function to read the YAML file
   try {
     const file = fs.readFileSync(yamlFilePath, "utf8");
 
     if (!file) {
-      console.error("Error: The YAML file is empty.");
-      return "Error: The YAML file is empty";
+      console.error("Error: The config YAML file is empty.");
+      return "Error: The config YAML file is empty";
     }
 
     const data = yaml.parse(file);
     res.send(data);
   } catch (e) {
-    console.error(`Error reading YAML file: ${e}`);
-    return null;
+    res.send({ error: e.message });
   }
 });
 
 app.post("/update_config", (req, res) => {
   const data = req.body;
   // Path to the YAML file
-  const yamlFilePath =
-    "/home/msf1/rmf_ws/src/rmf_demos/rmf_demos/config/office/tinyRobot_config.yaml";
+  const yamlFilePath = path.join(process.env.CONFIG_DIR, "config.yaml");
 
   // Function to write to the YAML file
   try {
     const yamlStr = yaml.stringify(data, { indent: 2 });
     fs.writeFileSync(yamlFilePath, yamlStr, "utf8");
-    res.send("YAML file updated successfully");
+    res.send("Fleet updated successfully");
   } catch (e) {
     console.error(`Error writing YAML file: ${e}`);
   }
+});
+
+app.post("/create_config", (req, res) => {
+  const { filename, content } = req.body;
+
+  const filePath = path.join(process.env.CONFIG_DIR, filename);
+
+  const yamlContent = yaml.stringify(content, 4);
+
+  fs.writeFile(filePath, yamlContent, (err) => {
+    if (err) {
+      return res.status(500).send("Error writing file");
+    }
+    res.send("File written successfully");
+  });
 });
 
 app.post("/upload_map", upload.single("file"), (req, res) => {
@@ -404,15 +438,6 @@ app.post("/run-traffic-editor", (req, res) => {
     res.send("Traffic Editor started");
   });
 });
-
-// app.post("/restart_ros", async (req, res) => {
-//   try {
-//     restartRos();
-//     res.send("Building started");
-//   } catch (error) {
-//     console.log(error);
-//   }
-// });
 
 // endpoint to colcon build specific packages
 app.post("/colcon_build", async (req, res) => {
