@@ -175,13 +175,13 @@ const Config = () => {
     filename,
     name,
     ip,
-    port,
-    finishing_request
+    finishing_request,
+    actionCategories
   ) => {
     try {
       const response = await axios.post(`${SERVER_URL}/create_config`, {
         filename: filename,
-        content: DataYaml(name, ip, port, finishing_request),
+        content: DataYaml(name, ip, finishing_request, actionCategories),
       });
       setFileName(filename);
       setOpenSnackbar(true);

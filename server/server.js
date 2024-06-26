@@ -110,6 +110,7 @@ const upload = multer({ storage: storage });
 let rosProcess = null;
 let rosProcess2 = null;
 let dockerComposeProcess = null;
+let rmfApiServer = null;
 
 const startRos = () => {
   if (!rosProcess) {
@@ -168,12 +169,37 @@ const shutdownProcesses = () => {
     console.log("ROS process is not running.");
   }
 
-  if (anotherPackageProcess) {
-    anotherPackageProcess.kill("SIGINT"); // Send SIGINT to gracefully shut down the process
+  if (rosProcess2) {
+    rosProcess2.kill("SIGINT"); // Send SIGINT to gracefully shut down the process
     console.log("Shutting down Another ROS package process...");
-    anotherPackageProcess = null; // Reset the variable to indicate the process is no longer running
+    rosProcess2 = null; // Reset the variable to indicate the process is no longer running
   } else {
     console.log("Another ROS package process is not running.");
+  }
+};
+
+const startRmfApiServer = () => {
+  if (!rmfApiServer) {
+    rmfApiServer = spawn("npm", ["start"], {
+      cwd: process.env.API_SERVER,
+    });
+
+    rmfApiServer.stdout.on("data", (data) => {
+      console.log(`Rmf api-server stdout: ${data}`);
+    });
+
+    rmfApiServer.stderr.on("data", (data) => {
+      console.error(`Rmf api-server stderr: ${data}`);
+    });
+
+    rmfApiServer.on("close", (code) => {
+      console.log(`Rmf api-server process exited with code ${code}`);
+      rmfApiServer = null;
+    });
+
+    console.log("Rmf api-server started");
+  } else {
+    console.log("Rmf api-server process is already running");
   }
 };
 
